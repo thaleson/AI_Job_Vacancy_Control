@@ -11,6 +11,7 @@ def run():
     st.title('Controle de Vagas de Emprego')
 
     def get_user_id():
+        # Exemplo simples com uma entrada manual para o ID do usuário
         return st.text_input('Digite seu nome', 'seu nome')  # Substitua com sua lógica de autenticação
 
     def load_data(user_id):
@@ -51,11 +52,6 @@ def run():
         if X is None or y is None:
             return None, None, None
         
-        # Verifique se há dados suficientes para a validação cruzada
-        if len(X) < 5:
-            st.warning('Dados insuficientes para validação cruzada.')
-            return None, None, None
-
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         model = RandomForestClassifier(n_estimators=100, random_state=42)
         model.fit(X_train, y_train)
@@ -93,6 +89,7 @@ def run():
                     st.success(f"Você tem {probabilidade * 100:.2f}% de chance de ser contratado. Resultado: Sucesso")
                 else:
                     st.warning(f"Você tem {probabilidade * 100:.2f}% de chance de ser contratado. Resultado: Não desista")
+
 
     st.subheader('Adicionar Nova Vaga')
     user_id = get_user_id()
@@ -175,7 +172,7 @@ def run():
         ax.set_title('Distribuição dos Setores')
         st.pyplot(fig)
 
-    if len(df) > 5:
+    if len(df) > 10:
         model, scaler, X_columns = train_model(df)
         if model:
             st.subheader('Previsão de Contratação')
