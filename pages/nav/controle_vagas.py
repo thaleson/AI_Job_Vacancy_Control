@@ -12,7 +12,7 @@ def run():
 
     def get_user_id():
         # Exemplo simples com uma entrada manual para o ID do usuário
-        return st.text_input('ID do Usuário', 'usuario1')  # Substitua com sua lógica de autenticação
+        return st.text_input('Digite seu nome', 'usuario1')  # Substitua com sua lógica de autenticação
 
     def load_data(user_id):
         file_path = f'{user_id}_vagas.csv'
