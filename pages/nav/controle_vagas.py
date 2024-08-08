@@ -171,7 +171,7 @@ def run():
         ax.set_title('Distribuição dos Setores')
         st.pyplot(fig)
 
-    if len(df) > 10:
+    if len(df) > 5:
         model, scaler, X_columns = train_model(df)
         if model:
             st.subheader('Previsão de Contratação')
