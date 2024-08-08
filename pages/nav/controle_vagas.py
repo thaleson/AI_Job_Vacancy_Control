@@ -10,34 +10,27 @@ import os
 def run():
     st.title('Controle de Vagas de Emprego')
 
-    # Função para carregar o CSV
-    def load_data():
-        if not os.path.exists('vagas.csv'):
+    def get_user_id():
+        # Exemplo simples com uma entrada manual para o ID do usuário
+        return st.text_input('ID do Usuário', 'usuario1')  # Substitua com sua lógica de autenticação
+
+    def load_data(user_id):
+        file_path = f'{user_id}_vagas.csv'
+        if not os.path.exists(file_path):
             df = pd.DataFrame(columns=['Nome_da_Empresa', 'Localizacao', 'Link_da_Vaga', 'Progresso', 'Data_da_Aplicacao', 'Tipo_de_Vaga', 'Setor'])
-            df.to_csv('vagas.csv', index=False)
-        return pd.read_csv('vagas.csv')
+            df.to_csv(file_path, index=False)
+        return pd.read_csv(file_path)
 
-    # Função para salvar o CSV
-    def save_data(df):
-        df.to_csv('vagas.csv', index=False)
-    
-    # Função para resetar o CSV
-    def reset_csv():
-        """Função para resetar o arquivo CSV, deixando-o vazio."""
-        df = pd.DataFrame(columns=['Nome_da_Empresa', 'Localizacao', 'Link_da_Vaga', 'Progresso', 'Data_da_Aplicacao', 'Tipo_de_Vaga', 'Setor'])
-        df.to_csv('vagas.csv', index=False)
-        st.success('CSV foi resetado e está vazio!')
+    def save_data(df, user_id):
+        df.to_csv(f'{user_id}_vagas.csv', index=False)
 
-    # Função para preparar os dados
     def prepare_features(data):
-        # Codificar variáveis categóricas
         le_progresso = LabelEncoder()
         data['Progresso_encoded'] = le_progresso.fit_transform(data['Progresso'])
 
-        # Converter datas
         try:
             data['Data_da_Aplicacao'] = pd.to_datetime(data['Data_da_Aplicacao'], format='%Y-%m-%d', errors='coerce')
-            data = data.dropna(subset=['Data_da_Aplicacao'])  # Remove linhas com datas inválidas
+            data = data.dropna(subset=['Data_da_Aplicacao'])
             data['Data_da_Aplicacao'] = data['Data_da_Aplicacao'].map(datetime.toordinal)
         except Exception as e:
             st.error(f"Erro ao converter datas: {e}")
@@ -46,13 +39,8 @@ def run():
         X = data[['Data_da_Aplicacao', 'Tipo_de_Vaga', 'Setor']]
         y = data['Progresso_encoded']
         
-        # Codificar variáveis categóricas adicionais
         X = pd.get_dummies(X, columns=['Tipo_de_Vaga', 'Setor'], drop_first=True)
-        
-        # Obter nomes das colunas antes da normalização
         X_columns = X.columns
-        
-        # Normalizar dados
         scaler = StandardScaler()
         X = scaler.fit_transform(X)
         
@@ -61,21 +49,19 @@ def run():
     def train_model(data):
         X, y, scaler, X_columns = prepare_features(data)
         
-        if X is None or y is None:  # Verifica se os dados foram preparados corretamente
+        if X is None or y is None:
             return None, None, None
         
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         model = RandomForestClassifier(n_estimators=100, random_state=42)
         model.fit(X_train, y_train)
         
-        # Avaliar o modelo
         scores = cross_val_score(model, X, y, cv=5)
         st.write(f"Acurácia média do modelo: {scores.mean():.2f}")
         
         return model, scaler, X_columns
 
     def predict(model, scaler, X_columns):
-        # Dados para previsão
         data_hoje = st.date_input('Data da Aplicação para Previsão', datetime.today())
         tipo_vaga_previsao = st.selectbox('Tipo de Vaga para Previsão', ['Full-time', 'Part-time', 'Freelance', 'Internship'])
         setor_previsao = st.text_input('Setor para Previsão')
@@ -84,19 +70,16 @@ def run():
             if not (tipo_vaga_previsao and setor_previsao):
                 st.warning('Preencha todos os dados para análise e previsão do modelo')
             else:
-                # Preparar dados para a previsão
                 data_hoje_ordinal = datetime.toordinal(data_hoje)
                 input_features = pd.DataFrame([[data_hoje_ordinal, tipo_vaga_previsao, setor_previsao]],
                                             columns=['Data_da_Aplicacao', 'Tipo_de_Vaga', 'Setor'])
                 
-                # Codificar variáveis categóricas e normalizar
                 input_features = pd.get_dummies(input_features, columns=['Tipo_de_Vaga', 'Setor'], drop_first=True)
                 input_features = input_features.reindex(columns=X_columns, fill_value=0)
                 input_features = scaler.transform(input_features)
                 
                 probabilidade = model.predict_proba(input_features)
                 
-                  
                 if probabilidade.shape[1] > 1:
                     probabilidade = probabilidade[0][1]  # Probabilidade de ser classificado como 'Com Retorno'
                 else:
@@ -107,8 +90,14 @@ def run():
                 else:
                     st.warning(f"Você tem {probabilidade:.2f} de chance de ser contratado. Resultado: Não desista")
 
-    # Adicionar nova vaga
     st.subheader('Adicionar Nova Vaga')
+    user_id = get_user_id()
+    if not user_id:
+        st.warning('Por favor, insira um ID de usuário para continuar.')
+        return
+
+    df = load_data(user_id)
+
     with st.form(key='add_vaga_form'):
         nome_empresa = st.text_input('Nome da Empresa')
         localizacao = st.text_input('Localização')
@@ -132,34 +121,27 @@ def run():
                     'Tipo_de_Vaga': [tipo_vaga],
                     'Setor': [setor]
                 })
-                df = load_data()
                 df = pd.concat([df, new_data], ignore_index=True)
-                save_data(df)
+                save_data(df, user_id)
                 st.success('Vaga adicionada com sucesso!')
 
-    # Excluir vaga
     st.subheader('Excluir Vaga')
-    df = load_data()
     vagas = df['Nome_da_Empresa'].tolist()
     vaga_para_deletar = st.selectbox('Selecione a vaga para excluir', vagas)
     if st.button('Excluir Vaga'):
         if vaga_para_deletar:
             df = df[df['Nome_da_Empresa'] != vaga_para_deletar]
-            save_data(df)
+            save_data(df, user_id)
             st.success('Vaga excluída com sucesso!')
 
-    # Mostrar dados do CSV
     st.subheader('Dados das Vagas')
-    df = load_data()
     st.dataframe(df)
 
-    # Gráficos
     st.subheader('Gráficos de Vagas')
     if len(df) > 0:
         df['Data_da_Aplicacao'] = pd.to_datetime(df['Data_da_Aplicacao'], errors='coerce')
-        df = df.dropna(subset=['Data_da_Aplicacao'])  # Remove linhas com datas inválidas
+        df = df.dropna(subset=['Data_da_Aplicacao'])
         
-        # Gráfico de linha das vagas por data
         fig, ax = plt.subplots()
         df['Quantidade'] = 1
         df_grouped = df.groupby('Data_da_Aplicacao').count()
@@ -169,7 +151,6 @@ def run():
         ax.set_ylabel('Quantidade de Vagas')
         st.pyplot(fig)
         
-        # Gráfico de barras do progresso das vagas
         fig, ax = plt.subplots()
         progresso_counts = df['Progresso'].value_counts()
         progresso_counts.plot(kind='bar', ax=ax)
@@ -178,32 +159,31 @@ def run():
         ax.set_ylabel('Quantidade de Vagas')
         st.pyplot(fig)
         
-        # Gráfico de pizza dos tipos de vaga
         fig, ax = plt.subplots()
         tipo_vaga_counts = df['Tipo_de_Vaga'].value_counts()
         ax.pie(tipo_vaga_counts, labels=tipo_vaga_counts.index, autopct='%1.1f%%', startangle=90)
         ax.set_title('Distribuição dos Tipos de Vaga')
         st.pyplot(fig)
         
-        # Gráfico de pizza dos setores
         fig, ax = plt.subplots()
         setor_counts = df['Setor'].value_counts()
         ax.pie(setor_counts, labels=setor_counts.index, autopct='%1.1f%%', startangle=90)
         ax.set_title('Distribuição dos Setores')
         st.pyplot(fig)
 
-    if len(df) > 10:  # Treinar o modelo se tivermos dados suficientes
+    if len(df) > 10:
         model, scaler, X_columns = train_model(df)
-        
-        st.subheader('Previsão de Contratação')
-        if model is not None and scaler is not None and X_columns is not None:  # Verifica se o modelo foi treinado corretamente
+        if model:
+            st.subheader('Previsão de Contratação')
             predict(model, scaler, X_columns)
+        else:
+            st.warning('Não foi possível treinar o modelo com os dados atuais.')
 
-    # Seção para resetar o CSV
     st.subheader('Resetar CSV')
     if st.button('Resetar CSV'):
-        reset_csv()
+        df = pd.DataFrame(columns=['Nome_da_Empresa', 'Localizacao', 'Link_da_Vaga', 'Progresso', 'Data_da_Aplicacao', 'Tipo_de_Vaga', 'Setor'])
+        save_data(df, user_id)
+        st.success('CSV foi resetado e está vazio!')
 
-# Para rodar o app
 if __name__ == '__main__':
     run()
