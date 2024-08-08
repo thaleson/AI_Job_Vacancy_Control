@@ -22,7 +22,7 @@ def run():
         st.write("")
         st.write("")
         st.write("")
-        st.markdown("<h5 style='text-align: justify;'>   Oi the best mentora Mariana Vicentin Gallo (She/Her)  Conexão de 1º grau  Bilingual Tech Recruiter at Tateeda | Talent Acquisition | Headhunting | HRBP  Fiz esse projeto que você me pediu.</h5>", unsafe_allow_html=True)
+        st.markdown("<h5 style='text-align: justify;'>  Este projeto é uma aplicação web desenvolvida para ajudar usuários a gerenciar suas candidaturas a empregos.Ele permite adicionar, visualizar e analisar candidaturas, bem como obter sugestões para melhorar suas chances de ser chamado para uma entrevista.</h5>", unsafe_allow_html=True)
 
     # conteúdo a ser exibido na coluna 2
     with col2:
