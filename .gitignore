@@ -1,0 +1,37 @@
+# Compiled Python files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Virtual environment
+venv/
+ENV/
+env/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Streamlit specific
+.streamlit/
+
+# Log files
+*.log
+
+# IDE or editor-specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# CSV files with sensitive information
+*.csv
+
+# Model files (if you want to ignore trained models)
+models/
