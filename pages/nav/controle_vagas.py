@@ -86,10 +86,12 @@ def run():
                     probabilidade = probabilidade[0][0]  # Caso haja apenas uma classe
                 
                 if probabilidade > 0.50:
-                    st.success(f"Você tem {probabilidade:.2f} de chance de ser contratado. Resultado: Sucesso")
+                    st.success(f"Você tem {probabilidade * 100:.2f}% de chance de ser contratado. Resultado: Sucesso")
                 else:
-                    st.warning(f"Você tem {probabilidade:.2f} de chance de ser contratado. Resultado: Não desista")
+                    st.warning(f"Você tem {probabilidade * 100:.2f}% de chance de ser contratado. Resultado: Não desista")
 
+
+     
     st.subheader('Adicionar Nova Vaga')
     user_id = get_user_id()
     if not user_id:
