@@ -17,8 +17,11 @@ def run():
     def load_data(user_id):
         file_path = f'{user_id}_vagas.csv'
         if not os.path.exists(file_path):
-            df = pd.DataFrame(columns=['ID', 'Data_da_Candidatura', 'Vaga', 'Nome_da_Empresa', 'Link_da_Vaga', 'Origem_da_Candidatura', 
-                                       'Pessoas_da_Empresa_Adicionadas', 'Linkedin_da_Pessoa_que_Mandei_a_Mensagem', 'Ultimo_Contato_pelo_Linkedin', 'Status'])
+            df = pd.DataFrame(columns=['Nome_da_Empresa', 'Localizacao', 'Link_da_Vaga', 'Progresso', 
+                                       'Data_da_Aplicacao', 'Tipo_de_Vaga', 'Setor', 'Data_da_Candidatura', 
+                                       'Vaga', 'Origem_da_Candidatura', 'Pessoas_da_Empresa_Adicionadas', 
+                                       'Linkedin_da_Pessoa_que_Mandei_a_Mensagem', 'Ultimo_Contato_pelo_Linkedin', 
+                                       'Status'])
             df.to_csv(file_path, index=False)
         return pd.read_csv(file_path)
 
@@ -41,6 +44,11 @@ def run():
                   'Linkedin_da_Pessoa_que_Mandei_a_Mensagem', 'Ultimo_Contato_pelo_Linkedin']]
         y = data['Status_encoded']
 
+        # Verificar se há dados suficientes e remover valores nulos
+        if X.isnull().sum().sum() > 0 or y.isnull().sum() > 0:
+            st.error('Existem valores nulos nos dados.')
+            return None, None, None, None
+
         X = pd.get_dummies(X, drop_first=True)
         X_columns = X.columns
         scaler = StandardScaler()
@@ -54,7 +62,23 @@ def run():
         if X is None or y is None:
             return None, None, None
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        # Verificar se há dados suficientes
+        if len(X) < 2 or len(set(y)) < 2:
+            st.error('Dados insuficientes para treinar o modelo.')
+            return None, None, None
+
+        # Verificar se X e y são arrays válidos
+        if X.shape[0] == 0 or len(y) == 0:
+            st.error('Dados de entrada inválidos.')
+            return None, None, None
+
+        # Dividir dados
+        try:
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        except ValueError as e:
+            st.error(f'Erro ao dividir os dados: {e}')
+            return None, None, None
+
         model = RandomForestClassifier(n_estimators=100, random_state=42)
         model.fit(X_train, y_train)
 
@@ -66,32 +90,31 @@ def run():
     def predict(model, scaler, X_columns):
         data_hoje = st.date_input('Data da Candidatura para Previsão', datetime.today())
         vaga_previsao = st.text_input('Vaga para Previsão')
-        origem_candidatura_previsao = st.text_input('Origem da Candidatura')
-        pessoas_empresa_adicionadas = st.text_input('Pessoas da Empresa Adicionadas')
-        linkedin_pessoa = st.text_input('Linkedin da Pessoa que Mandei a Mensagem')
-        ultimo_contato_linkedin = st.text_input('Último Contato pelo Linkedin')
+        origem_previsao = st.text_input('Origem da Candidatura')
+        pessoas_adicionadas_previsao = st.text_input('Pessoas da Empresa Adicionadas')
+        linkedin_previsao = st.text_input('Linkedin da Pessoa que Mandei a Mensagem')
+        ultimo_contato_previsao = st.text_input('Último Contato pelo Linkedin')
 
         if st.button('Prever'):
-            if not (vaga_previsao and origem_candidatura_previsao and pessoas_empresa_adicionadas and linkedin_pessoa and ultimo_contato_linkedin):
+            if not (vaga_previsao and origem_previsao and pessoas_adicionadas_previsao and linkedin_previsao and ultimo_contato_previsao):
                 st.warning('Preencha todos os dados para análise e previsão do modelo')
             else:
                 data_hoje_ordinal = datetime.toordinal(data_hoje)
-                input_features = pd.DataFrame([[data_hoje_ordinal, vaga_previsao, origem_candidatura_previsao, pessoas_empresa_adicionadas, 
-                                                linkedin_pessoa, ultimo_contato_linkedin]], 
-                                              columns=['Data_da_Candidatura', 'Vaga', 'Origem_da_Candidatura', 'Pessoas_da_Empresa_Adicionadas', 
-                                                       'Linkedin_da_Pessoa_que_Mandei_a_Mensagem', 'Ultimo_Contato_pelo_Linkedin'])
-
+                input_features = pd.DataFrame([[data_hoje_ordinal, vaga_previsao, origem_previsao, pessoas_adicionadas_previsao, linkedin_previsao, ultimo_contato_previsao]],
+                                            columns=['Data_da_Candidatura', 'Vaga', 'Origem_da_Candidatura', 'Pessoas_da_Empresa_Adicionadas', 
+                                                     'Linkedin_da_Pessoa_que_Mandei_a_Mensagem', 'Ultimo_Contato_pelo_Linkedin'])
+                
                 input_features = pd.get_dummies(input_features, drop_first=True)
                 input_features = input_features.reindex(columns=X_columns, fill_value=0)
                 input_features = scaler.transform(input_features)
-
+                
                 probabilidade = model.predict_proba(input_features)
-
+                
                 if probabilidade.shape[1] > 1:
                     probabilidade = probabilidade[0][1]  # Probabilidade de ser classificado como 'Com Retorno'
                 else:
                     probabilidade = probabilidade[0][0]  # Caso haja apenas uma classe
-
+                
                 if probabilidade > 0.50:
                     st.success(f"Você tem {probabilidade * 100:.2f}% de chance de ser contratado. Resultado: Sucesso")
                 else:
@@ -106,30 +129,39 @@ def run():
     df = load_data(user_id)
 
     with st.form(key='add_vaga_form'):
+        nome_empresa = st.text_input('Nome da Empresa')
+        localizacao = st.text_input('Localização')
+        link_vaga = st.text_input('Link da Vaga')
+        progresso = st.selectbox('Progresso', ['Em Processo', 'Sem Retorno', 'Com Retorno'])
+        data_aplicacao = st.date_input('Data da Aplicação')
+        tipo_vaga = st.selectbox('Tipo de Vaga', ['Full-time', 'Part-time', 'Freelance', 'Internship'])
+        setor = st.text_input('Setor')
         data_candidatura = st.date_input('Data da Candidatura')
         vaga = st.text_input('Vaga')
-        nome_empresa = st.text_input('Nome da Empresa')
-        link_vaga = st.text_input('Link da Vaga')
         origem_candidatura = st.text_input('Origem da Candidatura')
         pessoas_adicionadas = st.text_input('Pessoas da Empresa Adicionadas')
-        linkedin_pessoa = st.text_input('Linkedin da Pessoa que Mandei a Mensagem')
+        linkedin_mensagem = st.text_input('Linkedin da Pessoa que Mandei a Mensagem')
         ultimo_contato = st.text_input('Último Contato pelo Linkedin')
         status = st.selectbox('Status', ['Em Processo', 'Sem Retorno', 'Com Retorno'])
         
         submit_button = st.form_submit_button(label='Adicionar Vaga')
         if submit_button:
-            if not (vaga and nome_empresa and link_vaga and origem_candidatura and pessoas_adicionadas and linkedin_pessoa and ultimo_contato and status):
+            if not (nome_empresa and localizacao and link_vaga and progresso and data_aplicacao and tipo_vaga and setor and data_candidatura and vaga and origem_candidatura and pessoas_adicionadas and linkedin_mensagem and ultimo_contato and status):
                 st.warning('Preencha todos os dados por favor')
             else:
                 new_data = pd.DataFrame({
-                    'ID': [len(df) + 1],
+                    'Nome_da_Empresa': [nome_empresa],
+                    'Localizacao': [localizacao],
+                    'Link_da_Vaga': [link_vaga],
+                    'Progresso': [progresso],
+                    'Data_da_Aplicacao': [data_aplicacao],
+                    'Tipo_de_Vaga': [tipo_vaga],
+                    'Setor': [setor],
                     'Data_da_Candidatura': [data_candidatura],
                     'Vaga': [vaga],
-                    'Nome_da_Empresa': [nome_empresa],
-                    'Link_da_Vaga': [link_vaga],
                     'Origem_da_Candidatura': [origem_candidatura],
                     'Pessoas_da_Empresa_Adicionadas': [pessoas_adicionadas],
-                    'Linkedin_da_Pessoa_que_Mandei_a_Mensagem': [linkedin_pessoa],
+                    'Linkedin_da_Pessoa_que_Mandei_a_Mensagem': [linkedin_mensagem],
                     'Ultimo_Contato_pelo_Linkedin': [ultimo_contato],
                     'Status': [status]
                 })
@@ -137,36 +169,16 @@ def run():
                 save_data(df, user_id)
                 st.success('Vaga adicionada com sucesso!')
 
-    st.subheader('Excluir Vaga')
-    vagas = df['Nome_da_Empresa'].tolist()
-    vaga_para_deletar = st.selectbox('Selecione a vaga para excluir', vagas)
-    if st.button('Excluir Vaga'):
-        if vaga_para_deletar:
-            df = df[df['Nome_da_Empresa'] != vaga_para_deletar]
-            save_data(df, user_id)
-            st.success('Vaga excluída com sucesso!')
+    if st.button('Treinar Modelo'):
+        if len(df) < 2:
+            st.error('Não há dados suficientes para treinar o modelo.')
+        else:
+            model, scaler, X_columns = train_model(df)
+            if model is not None:
+                st.success('Modelo treinado com sucesso!')
+                predict(model, scaler, X_columns)
+            else:
+                st.error('Erro ao treinar o modelo.')
 
-    st.subheader('Dados das Vagas')
-    st.dataframe(df)
-
-    st.subheader('Gráficos de Vagas')
-    if len(df) > 0:
-        df['Data_da_Candidatura'] = pd.to_datetime(df['Data_da_Candidatura'], errors='coerce')
-        df = df.dropna(subset=['Data_da_Candidatura'])
-
-        fig, ax = plt.subplots()
-        df['Quantidade'] = 1
-        df_grouped = df.groupby('Data_da_Candidatura').count()
-        df_grouped['Quantidade'].plot(ax=ax)
-        ax.set_title('Número de Vagas ao Longo do Tempo')
-        ax.set_xlabel('Data da Candidatura')
-        ax.set_ylabel('Quantidade de Vagas')
-        st.pyplot(fig)
-
-    st.subheader('Previsão de Vaga')
-    model, scaler, X_columns = train_model(df)
-    if model:
-        predict(model, scaler, X_columns)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     run()
