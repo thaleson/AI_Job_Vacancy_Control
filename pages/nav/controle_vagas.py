@@ -61,6 +61,10 @@ def run():
         if X is None or y is None:
             return None, None, None
         
+        if len(X) < 7:
+            st.warning("Dados insuficientes para treinar o modelo. Por favor, adicione mais dados.")
+            return None, None, None
+        
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         model = RandomForestClassifier(n_estimators=100, random_state=42)
         model.fit(X_train, y_train)
