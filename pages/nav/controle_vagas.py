@@ -181,12 +181,6 @@ def run():
         ax.set_title('Distribuição da Origem da Candidatura')
         st.pyplot(fig)
 
-    if len(df) > 0:
-        st.subheader('Treinamento e Previsão do Modelo')
-        model, scaler, X_columns = train_model(df)
-        if model:
-            st.text('Modelo treinado com sucesso!')
-            predict(model, scaler, X_columns)
 
 if __name__ == "__main__":
     run()
