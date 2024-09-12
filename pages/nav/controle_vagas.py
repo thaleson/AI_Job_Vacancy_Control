@@ -11,8 +11,7 @@ def run():
     st.title('Controle de Vagas de Emprego')
 
     def get_user_id():
-        # Exemplo simples com uma entrada manual para o ID do usuário
-        return st.text_input('Digite seu nome', 'seu nome')  # Substitua com sua lógica de autenticação
+        return st.text_input('Digite seu nome', 'seu nome')
 
     def load_data(user_id):
         file_path = f'{user_id}_vagas.csv'
@@ -22,7 +21,9 @@ def run():
                        'Linkedin da pessoa que mandei a mensagem', 'Ultimo contato pelo linkedin', 'Status']
             df = pd.DataFrame(columns=columns)
             df.to_csv(file_path, index=False)
-        return pd.read_csv(file_path)
+        else:
+            df = pd.read_csv(file_path)
+        return df
 
     def save_data(df, user_id):
         df.to_csv(f'{user_id}_vagas.csv', index=False)
@@ -111,6 +112,7 @@ def run():
         return
 
     df = load_data(user_id)
+    st.write("Colunas do DataFrame:", df.columns)  # Adicione esta linha para depuração
 
     with st.form(key='add_vaga_form'):
         vaga = st.text_input('Vaga')
@@ -156,13 +158,10 @@ def run():
     st.subheader('Dados das Vagas')
     st.dataframe(df)
 
-    st.subheader('Gráficos de Vagas')
-    if len(df) > 0:
-        df['Data da Candidatura'] = pd.to_datetime(df['Data da Candidatura'], errors='coerce')
-        df = df.dropna(subset=['Data da Candidatura'])
-        
+    st.subheader('Análise dos Dados')
+    if not df.empty:
         fig, ax = plt.subplots()
-        df['Quantidade'] = 1
+        df['Data da Candidatura'] = pd.to_datetime(df['Data da Candidatura'])
         df.groupby(df['Data da Candidatura'].dt.to_period('M')).sum()['Quantidade'].plot(ax=ax)
         ax.set_title('Quantidade de Vagas por Mês')
         ax.set_xlabel('Mês')
