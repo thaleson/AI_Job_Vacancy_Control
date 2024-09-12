@@ -11,8 +11,7 @@ def run():
     st.title('Controle de Vagas de Emprego')
 
     def get_user_id():
-        # Exemplo simples com uma entrada manual para o ID do usuário
-        return st.text_input('Digite seu nome', 'seu nome')  # Substitua com sua lógica de autenticação
+        return st.text_input('Digite seu nome', 'seu nome')
 
     def load_data(user_id):
         file_path = f'{user_id}_vagas.csv'
@@ -134,8 +133,8 @@ def run():
                 save_data(df, user_id)
                 st.success('Vaga adicionada com sucesso!')
 
+    st.subheader('Excluir Vaga')
     if len(df) > 0:
-        st.subheader('Excluir Vaga')
         vagas = df['ID'].tolist()
         vaga_para_deletar = st.selectbox('Selecione a vaga para excluir', vagas)
         if st.button('Excluir Vaga'):
@@ -171,16 +170,25 @@ def run():
         
         fig, ax = plt.subplots()
         vaga_counts = df['Vaga'].value_counts()
-        ax.pie(vaga_counts, labels=vaga_counts.index, autopct='%1.1f%%', startangle=90)
+        ax.pie(vaga_counts, labels=vaga_counts.index, autopct='%1.1f%%')
         ax.set_title('Distribuição das Vagas')
         st.pyplot(fig)
-        
-        fig, ax = plt.subplots()
-        origem_counts = df['Origem da Candidatura'].value_counts()
-        ax.pie(origem_counts, labels=origem_counts.index, autopct='%1.1f%%', startangle=90)
-        ax.set_title('Distribuição da Origem da Candidatura')
-        st.pyplot(fig)
 
+    if len(df) >= 6 and len(df) <= 10:
+        st.subheader('Previsão de Vagas')
+        model, scaler, X_columns = train_model(df)
+        if model:
+            predict(model, scaler, X_columns)
+        else:
+            st.warning('Não foi possível treinar o modelo. Verifique os dados.')
+
+    st.subheader('Resetar Dados')
+    if st.button('Resetar CSV'):
+        if os.path.exists(f'{user_id}_vagas.csv'):
+            os.remove(f'{user_id}_vagas.csv')
+            st.success('Arquivo CSV resetado com sucesso!')
+        else:
+            st.warning('O arquivo CSV não existe.')
 
 if __name__ == "__main__":
     run()
