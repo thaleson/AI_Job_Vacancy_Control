@@ -32,6 +32,10 @@ def run():
         data['Status_encoded'] = le_status.fit_transform(data['Status'])
 
         try:
+            if 'Data da Candidatura' not in data.columns:
+                st.error("Coluna 'Data da Candidatura' não encontrada no DataFrame.")
+                return None, None, None, None
+
             data['Data da Candidatura'] = pd.to_datetime(data['Data da Candidatura'], format='%Y-%m-%d', errors='coerce')
             data = data.dropna(subset=['Data da Candidatura'])
             data['Data da Candidatura'] = data['Data da Candidatura'].map(datetime.toordinal)
@@ -160,34 +164,25 @@ def run():
 
     st.subheader('Gráficos de Candidaturas')
     if len(df) > 0:
-        df['Data da Candidatura'] = pd.to_datetime(df['Data da Candidatura'], errors='coerce')
-        df = df.dropna(subset=['Data da Candidatura'])
-        
-        fig, ax = plt.subplots()
-        df['Quantidade'] = 1
-        df_grouped = df.groupby('Data da Candidatura').count()
-        df_grouped['Quantidade'].plot(ax=ax)
-        ax.set_title('Número de Candidaturas ao Longo do Tempo')
-        ax.set_xlabel('Data da Candidatura')
-        ax.set_ylabel('Quantidade de Candidaturas')
-        st.pyplot(fig)
-        
-        fig, ax = plt.subplots()
-        status_counts = df['Status'].value_counts()
-        status_counts.plot(kind='bar', ax=ax)
-        ax.set_title('Distribuição dos Status das Candidaturas')
-        ax.set_xlabel('Status')
-        ax.set_ylabel('Número de Candidaturas')
-        st.pyplot(fig)
+        if 'Data da Candidatura' in df.columns:
+            df['Data da Candidatura'] = pd.to_datetime(df['Data da Candidatura'], errors='coerce')
+            df = df.dropna(subset=['Data da Candidatura'])
+            
+            fig, ax = plt.subplots()
+            df['Data da Candidatura'].value_counts().sort_index().plot(kind='bar', ax=ax)
+            ax.set_xlabel('Data da Candidatura')
+            ax.set_ylabel('Número de Candidaturas')
+            ax.set_title('Número de Candidaturas por Data')
+            st.pyplot(fig)
 
-    st.subheader('Previsão com Modelo de Machine Learning')
-    df_train = df.copy()
-    model, scaler, X_columns = train_model(df_train)
+        st.subheader('Previsão com Modelo de Machine Learning')
+        df_train = df.copy()
+        model, scaler, X_columns = train_model(df_train)
 
-    if model and scaler and X_columns:
-        predict(model, scaler, X_columns)
-    else:
-        st.warning('Não foi possível treinar o modelo. Verifique se há dados suficientes e tente novamente.')
+        if model and scaler and X_columns:
+            predict(model, scaler, X_columns)
+        else:
+            st.warning('Não foi possível treinar o modelo. Verifique se há dados suficientes e tente novamente.')
 
 if __name__ == "__main__":
     run()
