@@ -1,6 +1,3 @@
-Controle de Vagas de Emprego
-
-eu fiz esse projeto com vc
 
 import streamlit as st
 import pandas as pd
