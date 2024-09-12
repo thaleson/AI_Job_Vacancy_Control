@@ -121,6 +121,11 @@ def run():
 
     df = load_data(user_id)
 
+    # Verifique se a coluna 'ID' está presente
+    if 'ID' not in df.columns:
+        st.error("A coluna 'ID' não foi encontrada no arquivo de dados.")
+        return
+
     with st.form(key='add_candidatura_form'):
         id_candidatura = st.text_input('ID da Candidatura')
         data_candidatura = st.date_input('Data da Candidatura')
@@ -155,7 +160,7 @@ def run():
                 st.success('Candidatura adicionada com sucesso!')
 
     st.subheader('Excluir Candidatura')
-    candidaturas = df['ID'].tolist()
+    candidaturas = df['ID'].tolist() if 'ID' in df.columns else []
     candidatura_para_deletar = st.selectbox('Selecione a candidatura para excluir', candidaturas)
     if st.button('Excluir Candidatura'):
         if candidatura_para_deletar:
@@ -166,27 +171,25 @@ def run():
     st.subheader('Dados das Candidaturas')
     st.dataframe(df)
 
-    st.subheader('Gráficos de Candidaturas')
     if len(df) > 0:
-        if 'Data da Candidatura' in df.columns:
-            df['Data da Candidatura'] = pd.to_datetime(df['Data da Candidatura'], errors='coerce')
-            df = df.dropna(subset=['Data da Candidatura'])
-            
-            fig, ax = plt.subplots()
-            df['Data da Candidatura'].value_counts().sort_index().plot(kind='bar', ax=ax)
-            ax.set_xlabel('Data da Candidatura')
-            ax.set_ylabel('Número de Candidaturas')
-            ax.set_title('Número de Candidaturas por Data')
-            st.pyplot(fig)
+        fig, ax = plt.subplots()
+        df['Data da Candidatura'] = pd.to_datetime(df['Data da Candidatura'], format='%Y-%m-%d', errors='coerce')
+        df.dropna(subset=['Data da Candidatura'], inplace=True)
+        df['Data da Candidatura'] = pd.to_datetime(df['Data da Candidatura'])
+        df['Data da Candidatura'].value_counts().sort_index().plot(kind='bar', ax=ax)
+        ax.set_xlabel('Data da Candidatura')
+        ax.set_ylabel('Número de Candidaturas')
+        ax.set_title('Número de Candidaturas por Data')
+        st.pyplot(fig)
 
-        st.subheader('Previsão com Modelo de Machine Learning')
-        df_train = df.copy()
-        model, scaler, X_columns = train_model(df_train)
+    st.subheader('Previsão com Modelo de Machine Learning')
+    df_train = df.copy()
+    model, scaler, X_columns = train_model(df_train)
 
-        if model and scaler and X_columns:
-            predict(model, scaler, X_columns)
-        else:
-            st.warning('Não foi possível treinar o modelo. Verifique se há dados suficientes e tente novamente.')
+    if model and scaler and X_columns:
+        predict(model, scaler, X_columns)
+    else:
+        st.warning('Não foi possível treinar o modelo. Verifique se há dados suficientes e tente novamente.')
 
 if __name__ == "__main__":
     run()
