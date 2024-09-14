@@ -45,20 +45,27 @@ def run():
         
         return X, y, scaler, X_columns
 
-    def train_model(data):
-        X, y, scaler, X_columns = prepare_features(data)
-        
-        if X is None or y is None:
-            return None, None, None
-        
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        model = RandomForestClassifier(n_estimators=100, random_state=42)
-        model.fit(X_train, y_train)
-        
-        scores = cross_val_score(model, X, y, cv=5)
-        st.write(f"Acurácia média do modelo: {scores.mean():.2f}")
-        
-        return model, scaler, X_columns
+  def train_model(data):
+    X, y, scaler, X_columns = prepare_features(data)
+
+    if X is None or y is None:
+        return None, None, None
+
+    # Verificar se há dados suficientes para a validação cruzada
+    if len(y) < 5:
+        st.warning('Dados insuficientes para realizar a validação cruzada com 5 dobras. Adicione mais dados.')
+        return None, None, None
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
+
+    # Ajustar o número de dobras baseado no número de exemplos
+    cv_dobras = min(5, len(y))  # Número de dobras será no máximo 5 ou o tamanho do dataset
+    scores = cross_val_score(model, X, y, cv=cv_dobras)
+    st.write(f"Acurácia média do modelo: {scores.mean():.2f}")
+
+    return model, scaler, X_columns
 
     def predict(model, scaler, X_columns):
         data_hoje = st.date_input('Data da Candidatura para Previsão', datetime.today())
