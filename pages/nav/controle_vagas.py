@@ -170,25 +170,19 @@ def run():
         
         fig, ax = plt.subplots()
         df['Quantidade'] = 1
-        df_grouped = df.groupby('Data da Candidatura').count()
-        df_grouped['Quantidade'].plot(ax=ax)
-        ax.set_title('Número de Vagas ao Longo do Tempo')
-        ax.set_xlabel('Data da Candidatura')
-        ax.set_ylabel('Quantidade de Vagas')
+        df_grouped = df.groupby('Data da Candidatura').count()['Quantidade']
+        df_grouped.plot(ax=ax, kind='bar', title='Distribuição das Vagas ao longo do Tempo')
         st.pyplot(fig)
         
         fig, ax = plt.subplots()
-        status_counts = df['Status'].value_counts()
-        status_counts.plot(kind='bar', ax=ax)
-        ax.set_title('Distribuição de Status das Vagas')
-        ax.set_xlabel('Status')
-        ax.set_ylabel('Quantidade de Vagas')
+        df['Status'].value_counts().plot(kind='bar', ax=ax, title='Distribuição das Vagas por Status')
         st.pyplot(fig)
-        
-    st.subheader('Treinamento e Previsão')
+
     if len(df) >= 6:
+        st.subheader('Previsão de Sucesso')
         model, scaler, X_columns = train_model(df)
         if model:
             predict(model, scaler, X_columns)
-    else:
-        st.warning('Dados insuficientes para realizar previsões. Adicione pelo menos 6 vagas.')
+
+if __name__ == "__main__":
+    run()
