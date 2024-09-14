@@ -16,7 +16,10 @@ def run():
     def load_data(user_id):
         file_path = f'{user_id}_vagas.csv'
         if not os.path.exists(file_path):
-            df = pd.DataFrame(columns=['ID', 'Data da Candidatura', 'Vaga', 'Nome da Empresa', 'Link da vaga', 'Origem da Candidatura', 'Pessoas da empresa adicionadas', 'Linkedin da pessoa que mandei a mensagem', 'Ultimo contato pelo linkedin', 'Status'])
+            df = pd.DataFrame(columns=['ID', 'Data da Candidatura', 'Vaga', 'Nome da Empresa', 'Link da vaga', 
+                                       'Origem da Candidatura', 'Pessoas da empresa adicionadas', 
+                                       'Linkedin da pessoa que mandei a mensagem', 'Ultimo contato pelo linkedin', 
+                                       'Status'])
             df.to_csv(file_path, index=False)
         return pd.read_csv(file_path)
 
@@ -35,7 +38,8 @@ def run():
             st.error(f"Erro ao converter datas: {e}")
             return None, None, None, None
 
-        X = data[['Data da Candidatura', 'Vaga', 'Origem da Candidatura', 'Pessoas da empresa adicionadas', 'Linkedin da pessoa que mandei a mensagem', 'Ultimo contato pelo linkedin']]
+        X = data[['Data da Candidatura', 'Vaga', 'Origem da Candidatura', 'Pessoas da empresa adicionadas', 
+                  'Linkedin da pessoa que mandei a mensagem', 'Ultimo contato pelo linkedin']]
         y = data['Status_encoded']
         
         X = pd.get_dummies(X, drop_first=True)
@@ -45,27 +49,27 @@ def run():
         
         return X, y, scaler, X_columns
 
-  def train_model(data):
-    X, y, scaler, X_columns = prepare_features(data)
+    def train_model(data):
+        X, y, scaler, X_columns = prepare_features(data)
 
-    if X is None or y is None:
-        return None, None, None
+        if X is None or y is None:
+            return None, None, None
 
-    # Verificar se há dados suficientes para a validação cruzada
-    if len(y) < 5:
-        st.warning('Dados insuficientes para realizar a validação cruzada com 5 dobras. Adicione mais dados.')
-        return None, None, None
+        # Verificar se há dados suficientes para a validação cruzada
+        if len(y) < 5:
+            st.warning('Dados insuficientes para realizar a validação cruzada com 5 dobras. Adicione mais dados.')
+            return None, None, None
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        model = RandomForestClassifier(n_estimators=100, random_state=42)
+        model.fit(X_train, y_train)
 
-    # Ajustar o número de dobras baseado no número de exemplos
-    cv_dobras = min(5, len(y))  # Número de dobras será no máximo 5 ou o tamanho do dataset
-    scores = cross_val_score(model, X, y, cv=cv_dobras)
-    st.write(f"Acurácia média do modelo: {scores.mean():.2f}")
+        # Ajustar o número de dobras baseado no número de exemplos
+        cv_dobras = min(5, len(y))  # Número de dobras será no máximo 5 ou o tamanho do dataset
+        scores = cross_val_score(model, X, y, cv=cv_dobras)
+        st.write(f"Acurácia média do modelo: {scores.mean():.2f}")
 
-    return model, scaler, X_columns
+        return model, scaler, X_columns
 
     def predict(model, scaler, X_columns):
         data_hoje = st.date_input('Data da Candidatura para Previsão', datetime.today())
@@ -76,12 +80,17 @@ def run():
         ultimo_contato_previsao = st.text_input('Ultimo contato pelo linkedin')
 
         if st.button('Prever'):
-            if not (vaga_previsao and origem_candidatura_previsao and pessoas_adicionadas_previsao and linkedin_previsao and ultimo_contato_previsao):
+            if not (vaga_previsao and origem_candidatura_previsao and pessoas_adicionadas_previsao and 
+                    linkedin_previsao and ultimo_contato_previsao):
                 st.warning('Preencha todos os dados para análise e previsão do modelo')
             else:
                 data_hoje_ordinal = datetime.toordinal(data_hoje)
-                input_features = pd.DataFrame([[data_hoje_ordinal, vaga_previsao, origem_candidatura_previsao, pessoas_adicionadas_previsao, linkedin_previsao, ultimo_contato_previsao]],
-                                            columns=['Data da Candidatura', 'Vaga', 'Origem da Candidatura', 'Pessoas da empresa adicionadas', 'Linkedin da pessoa que mandei a mensagem', 'Ultimo contato pelo linkedin'])
+                input_features = pd.DataFrame([[data_hoje_ordinal, vaga_previsao, origem_candidatura_previsao, 
+                                                pessoas_adicionadas_previsao, linkedin_previsao, ultimo_contato_previsao]],
+                                              columns=['Data da Candidatura', 'Vaga', 'Origem da Candidatura', 
+                                                       'Pessoas da empresa adicionadas', 
+                                                       'Linkedin da pessoa que mandei a mensagem', 
+                                                       'Ultimo contato pelo linkedin'])
                 
                 input_features = pd.get_dummies(input_features, drop_first=True)
                 input_features = input_features.reindex(columns=X_columns, fill_value=0)
@@ -121,7 +130,8 @@ def run():
         
         submit_button = st.form_submit_button(label='Adicionar Vaga')
         if submit_button:
-            if not (id_vaga and data_candidatura and vaga and nome_empresa and link_vaga and origem_candidatura and pessoas_adicionadas and linkedin_mensagem and ultimo_contato and status):
+            if not (id_vaga and data_candidatura and vaga and nome_empresa and link_vaga and origem_candidatura and 
+                    pessoas_adicionadas and linkedin_mensagem and ultimo_contato and status):
                 st.warning('Preencha todos os dados por favor')
             else:
                 new_data = pd.DataFrame({
@@ -175,27 +185,10 @@ def run():
         ax.set_ylabel('Quantidade de Vagas')
         st.pyplot(fig)
         
-        fig, ax = plt.subplots()
-        vaga_counts = df['Vaga'].value_counts()
-        ax.pie(vaga_counts, labels=vaga_counts.index, autopct='%1.1f%%')
-        ax.set_title('Distribuição das Vagas')
-        st.pyplot(fig)
-
-    if len(df) >= 6 and len(df) <= 10:
-        st.subheader('Previsão de Vagas')
+    st.subheader('Treinamento e Previsão')
+    if len(df) >= 6:
         model, scaler, X_columns = train_model(df)
         if model:
             predict(model, scaler, X_columns)
-        else:
-            st.warning('Não foi possível treinar o modelo. Verifique os dados.')
-
-    st.subheader('Resetar Dados')
-    if st.button('Resetar CSV'):
-        if os.path.exists(f'{user_id}_vagas.csv'):
-            os.remove(f'{user_id}_vagas.csv')
-            st.success('Arquivo CSV resetado com sucesso!')
-        else:
-            st.warning('O arquivo CSV não existe.')
-
-if __name__ == "__main__":
-    run()
+    else:
+        st.warning('Dados insuficientes para realizar previsões. Adicione pelo menos 6 vagas.')
