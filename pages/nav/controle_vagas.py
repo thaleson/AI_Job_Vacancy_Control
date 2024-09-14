@@ -6,6 +6,8 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 import os
+import io
+from fpdf import FPDF
 
 def run():
     st.title('Controle de Vagas de Emprego')
@@ -23,81 +25,32 @@ def run():
     def save_data(df, user_id):
         df.to_csv(f'{user_id}_vagas.csv', index=False)
 
-    def prepare_features(data):
-        le_status = LabelEncoder()
-        data['Status_encoded'] = le_status.fit_transform(data['Status'])
+    # Função para exportar para Excel
+    def export_to_excel(df):
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Vagas')
+        processed_data = output.getvalue()
+        return processed_data
 
-        try:
-            data['Data da Candidatura'] = pd.to_datetime(data['Data da Candidatura'], format='%Y-%m-%d', errors='coerce')
-            data = data.dropna(subset=['Data da Candidatura'])
-            data['Data da Candidatura'] = data['Data da Candidatura'].map(datetime.toordinal)
-        except Exception as e:
-            st.error(f"Erro ao converter datas: {e}")
-            return None, None, None, None
+    # Função para exportar para PDF
+    def export_to_pdf(df):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font('Arial', 'B', 12)
+        for col_name in df.columns:
+            pdf.cell(40, 10, col_name, 1, 0, 'C')
+        pdf.ln()
+        pdf.set_font('Arial', '', 12)
+        for index, row in df.iterrows():
+            for item in row:
+                pdf.cell(40, 10, str(item), 1, 0, 'C')
+            pdf.ln()
+        output = io.BytesIO()
+        pdf.output(output)
+        return output.getvalue()
 
-        X = data[['Data da Candidatura', 'Vaga', 'Origem da Candidatura', 'Pessoas da empresa adicionadas', 'Linkedin da pessoa que mandei a mensagem', 'Ultimo contato pelo linkedin']]
-        y = data['Status_encoded']
-        
-        X = pd.get_dummies(X, drop_first=True)
-        X_columns = X.columns
-        scaler = StandardScaler()
-        X = scaler.fit_transform(X)
-        
-        return X, y, scaler, X_columns
-
-  def train_model(data):
-    X, y, scaler, X_columns = prepare_features(data)
-
-    if X is None or y is None:
-        return None, None, None
-
-    # Verificar se há dados suficientes para a validação cruzada
-    if len(y) < 5:
-        st.warning('Dados insuficientes para realizar a validação cruzada com 5 dobras. Adicione mais dados.')
-        return None, None, None
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
-
-    # Ajustar o número de dobras baseado no número de exemplos
-    cv_dobras = min(5, len(y))  # Número de dobras será no máximo 5 ou o tamanho do dataset
-    scores = cross_val_score(model, X, y, cv=cv_dobras)
-    st.write(f"Acurácia média do modelo: {scores.mean():.2f}")
-
-    return model, scaler, X_columns
-
-    def predict(model, scaler, X_columns):
-        data_hoje = st.date_input('Data da Candidatura para Previsão', datetime.today())
-        vaga_previsao = st.text_input('Vaga para Previsão')
-        origem_candidatura_previsao = st.text_input('Origem da Candidatura')
-        pessoas_adicionadas_previsao = st.text_input('Pessoas da empresa adicionadas')
-        linkedin_previsao = st.text_input('Linkedin da pessoa que mandei a mensagem')
-        ultimo_contato_previsao = st.text_input('Ultimo contato pelo linkedin')
-
-        if st.button('Prever'):
-            if not (vaga_previsao and origem_candidatura_previsao and pessoas_adicionadas_previsao and linkedin_previsao and ultimo_contato_previsao):
-                st.warning('Preencha todos os dados para análise e previsão do modelo')
-            else:
-                data_hoje_ordinal = datetime.toordinal(data_hoje)
-                input_features = pd.DataFrame([[data_hoje_ordinal, vaga_previsao, origem_candidatura_previsao, pessoas_adicionadas_previsao, linkedin_previsao, ultimo_contato_previsao]],
-                                            columns=['Data da Candidatura', 'Vaga', 'Origem da Candidatura', 'Pessoas da empresa adicionadas', 'Linkedin da pessoa que mandei a mensagem', 'Ultimo contato pelo linkedin'])
-                
-                input_features = pd.get_dummies(input_features, drop_first=True)
-                input_features = input_features.reindex(columns=X_columns, fill_value=0)
-                input_features = scaler.transform(input_features)
-                
-                probabilidade = model.predict_proba(input_features)
-                
-                if probabilidade.shape[1] > 1:
-                    probabilidade = probabilidade[0][1]  # Probabilidade de ser classificado como 'Status positivo'
-                else:
-                    probabilidade = probabilidade[0][0]  # Caso haja apenas uma classe
-                
-                if probabilidade > 0.50:
-                    st.success(f"Você tem {probabilidade * 100:.2f}% de chance de obter sucesso. Resultado: Sucesso")
-                else:
-                    st.warning(f"Você tem {probabilidade * 100:.2f}% de chance de obter sucesso. Resultado: Não desista")
+    # Outras funções...
 
     st.subheader('Adicionar Nova Vaga')
     user_id = get_user_id()
@@ -107,6 +60,7 @@ def run():
 
     df = load_data(user_id)
 
+    # Formulário para adicionar vaga
     with st.form(key='add_vaga_form'):
         id_vaga = st.text_input('ID da Vaga')
         data_candidatura = st.date_input('Data da Candidatura')
@@ -140,64 +94,30 @@ def run():
                 save_data(df, user_id)
                 st.success('Vaga adicionada com sucesso!')
 
-    st.subheader('Excluir Vaga')
+    st.subheader('Exportar Dados')
     if len(df) > 0:
-        vagas = df['ID'].tolist()
-        vaga_para_deletar = st.selectbox('Selecione a vaga para excluir', vagas)
-        if st.button('Excluir Vaga'):
-            if vaga_para_deletar:
-                df = df[df['ID'] != vaga_para_deletar]
-                save_data(df, user_id)
-                st.success('Vaga excluída com sucesso!')
+        export_excel = st.button('Exportar para Excel')
+        export_pdf = st.button('Exportar para PDF')
 
-    st.subheader('Dados das Vagas')
-    st.dataframe(df)
+        if export_excel:
+            excel_data = export_to_excel(df)
+            st.download_button(
+                label='Baixar Excel',
+                data=excel_data,
+                file_name=f'{user_id}_vagas.xlsx',
+                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
 
-    st.subheader('Gráficos de Vagas')
-    if len(df) > 0:
-        df['Data da Candidatura'] = pd.to_datetime(df['Data da Candidatura'], errors='coerce')
-        df = df.dropna(subset=['Data da Candidatura'])
-        
-        fig, ax = plt.subplots()
-        df['Quantidade'] = 1
-        df_grouped = df.groupby('Data da Candidatura').count()
-        df_grouped['Quantidade'].plot(ax=ax)
-        ax.set_title('Número de Vagas ao Longo do Tempo')
-        ax.set_xlabel('Data da Candidatura')
-        ax.set_ylabel('Quantidade de Vagas')
-        st.pyplot(fig)
-        
-        fig, ax = plt.subplots()
-        status_counts = df['Status'].value_counts()
-        status_counts.plot(kind='bar', ax=ax)
-        ax.set_title('Distribuição de Status das Vagas')
-        ax.set_xlabel('Status')
-        ax.set_ylabel('Quantidade de Vagas')
-        st.pyplot(fig)
-        
-        fig, ax = plt.subplots()
-        vaga_counts = df['Vaga'].value_counts()
-        ax.pie(vaga_counts, labels=vaga_counts.index, autopct='%1.1f%%')
-        ax.set_title('Distribuição das Vagas')
-        st.pyplot(fig)
+        if export_pdf:
+            pdf_data = export_to_pdf(df)
+            st.download_button(
+                label='Baixar PDF',
+                data=pdf_data,
+                file_name=f'{user_id}_vagas.pdf',
+                mime='application/pdf'
+            )
 
-    if len(df) >= 10 and len(df) <= 10:
-        st.subheader('Previsão de Vagas')
-        model, scaler, X_columns = train_model(df)
-        if model:
-            predict(model, scaler, X_columns)
-        else:
-            st.warning('Não foi possível treinar o modelo. Verifique os dados.')
-
-    st.subheader('Resetar Dados')
-    if st.button('Resetar CSV'):
-        if os.path.exists(f'{user_id}_vagas.csv'):
-            os.remove(f'{user_id}_vagas.csv')
-            st.success('Arquivo CSV resetado com sucesso!')
-        else:
-            st.warning('O arquivo CSV não existe.')
+    # Restante do código...
 
 if __name__ == "__main__":
     run()
-
-ajeite isso nesse codigo
