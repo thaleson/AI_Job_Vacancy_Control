@@ -2,13 +2,18 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 import os
 
 def run():
     """
     Função principal que executa a aplicação Streamlit para controle de vagas de emprego.
-    Inclui funcionalidades para adicionar, excluir e visualizar vagas, além de gráficos e recomendações.
+    Inclui funcionalidades para adicionar, excluir e visualizar vagas, além de gráficos
+    para análise das candidaturas.
     """
+    
     st.title('Controle de Vagas de Emprego')
 
     def get_user_id():
@@ -18,7 +23,7 @@ def run():
         Returns:
             str: Nome do usuário, utilizado como ID para o arquivo CSV.
         """
-        return st.text_input('Digite seu nome', 'seu_nome')
+        return st.text_input('Digite seu nome', 'seu nome')
 
     def load_data(user_id):
         """
@@ -47,56 +52,17 @@ def run():
         """
         df.to_csv(f'{user_id}_vagas.csv', index=False)
 
-    def plot_status_distribution(df):
+    def reset_data(user_id):
         """
-        Plota um gráfico de barras mostrando a distribuição dos status das vagas.
+        Reseta o arquivo CSV para um DataFrame vazio.
 
         Args:
-            df (pd.DataFrame): DataFrame com os dados das vagas.
+            user_id (str): ID do usuário para determinar o nome do arquivo CSV.
         """
-        st.subheader('Distribuição de Status das Vagas')
-        status_counts = df['Status'].value_counts()
-        fig, ax = plt.subplots()
-        status_counts.plot(kind='bar', ax=ax)
-        ax.set_title('Distribuição de Status')
-        ax.set_xlabel('Status')
-        ax.set_ylabel('Contagem')
-        st.pyplot(fig)
-
-    def plot_origin_distribution(df):
-        """
-        Plota um gráfico de barras mostrando a distribuição das origens das candidaturas.
-
-        Args:
-            df (pd.DataFrame): DataFrame com os dados das vagas.
-        """
-        st.subheader('Distribuição de Origem das Candidaturas')
-        origin_counts = df['Origem da Candidatura'].value_counts()
-        fig, ax = plt.subplots()
-        origin_counts.plot(kind='bar', ax=ax)
-        ax.set_title('Distribuição de Origem')
-        ax.set_xlabel('Origem')
-        ax.set_ylabel('Contagem')
-        st.pyplot(fig)
-
-    def recommend_best_vaga(df):
-        """
-        Recomenda a melhor vaga com base no status e na origem da candidatura.
-
-        Args:
-            df (pd.DataFrame): DataFrame com os dados das vagas.
-        """
-        st.subheader('Recomendação de Vaga')
-        if not df.empty:
-            # Critério de exemplo: vagas com status 'Entrevista' e origem 'LinkedIn'
-            recomendada = df[(df['Status'] == 'Entrevista') & (df['Origem da Candidatura'] == 'LinkedIn')]
-            if not recomendada.empty:
-                st.write('Recomendação com base em vagas com status "Entrevista" e origem "LinkedIn":')
-                st.write(recomendada[['ID', 'Vaga', 'Nome da Empresa']])
-            else:
-                st.write('Nenhuma vaga encontrada com os critérios selecionados.')
-        else:
-            st.write('Sem dados suficientes para recomendação.')
+        file_path = f'{user_id}_vagas.csv'
+        df = pd.DataFrame(columns=['ID', 'Data da Candidatura', 'Vaga', 'Nome da Empresa', 'Link da vaga', 'Origem da Candidatura', 'Pessoas da empresa adicionadas', 'Linkedin da pessoa que mandei a mensagem', 'Ultimo contato pelo linkedin', 'Status'])
+        df.to_csv(file_path, index=False)
+        st.success('Arquivo CSV resetado com sucesso!')
 
     st.subheader('Adicionar Nova Vaga')
     user_id = get_user_id()
@@ -106,6 +72,7 @@ def run():
 
     df = load_data(user_id)
 
+    # Formulário para adicionar nova vaga
     with st.form(key='add_vaga_form'):
         id_vaga = st.text_input('ID da Vaga')
         data_candidatura = st.date_input('Data da Candidatura')
@@ -120,41 +87,77 @@ def run():
         
         submit_button = st.form_submit_button(label='Adicionar Vaga')
         if submit_button:
-            if not (id_vaga and vaga and nome_empresa and origem_candidatura):
-                st.warning('Por favor, preencha todos os campos obrigatórios.')
+            if not (id_vaga and data_candidatura and vaga and nome_empresa and link_vaga and origem_candidatura and pessoas_adicionadas and linkedin_mensagem and ultimo_contato):
+                st.warning('Por favor, preencha todos os campos.')
             else:
-                # Evitar duplicatas
-                if id_vaga in df['ID'].values:
-                    st.warning('Vaga com esse ID já existe.')
-                else:
-                    try:
-                        new_data = pd.DataFrame({
-                            'ID': [id_vaga],
-                            'Data da Candidatura': [data_candidatura],
-                            'Vaga': [vaga],
-                            'Nome da Empresa': [nome_empresa],
-                            'Link da vaga': [link_vaga],
-                            'Origem da Candidatura': [origem_candidatura],
-                            'Pessoas da empresa adicionadas': [pessoas_adicionadas],
-                            'Linkedin da pessoa que mandei a mensagem': [linkedin_mensagem],
-                            'Ultimo contato pelo linkedin': [ultimo_contato],
-                            'Status': [status]
-                        })
-                        df = pd.concat([df, new_data], ignore_index=True)
-                        save_data(df, user_id)
-                        st.success('Vaga adicionada com sucesso!')
-                    except Exception as e:
-                        st.error(f'Erro ao adicionar vaga: {e}')
+                try:
+                    data_candidatura = datetime.strptime(str(data_candidatura), '%Y-%m-%d')
+                    new_data = pd.DataFrame({
+                        'ID': [id_vaga],
+                        'Data da Candidatura': [data_candidatura],
+                        'Vaga': [vaga],
+                        'Nome da Empresa': [nome_empresa],
+                        'Link da vaga': [link_vaga],
+                        'Origem da Candidatura': [origem_candidatura],
+                        'Pessoas da empresa adicionadas': [pessoas_adicionadas],
+                        'Linkedin da pessoa que mandei a mensagem': [linkedin_mensagem],
+                        'Ultimo contato pelo linkedin': [ultimo_contato],
+                        'Status': [status]
+                    })
+                    
+                    df = pd.concat([df, new_data], ignore_index=True)
+                    save_data(df, user_id)
+                    st.success('Vaga adicionada com sucesso!')
+                except ValueError:
+                    st.error('Erro ao converter a data. Verifique o formato da data inserida.')
 
+    # Excluir vaga por ID
+    st.subheader('Excluir Vaga')
+    vaga_id_to_delete = st.text_input('Digite o ID da vaga que deseja excluir')
+    if st.button('Excluir Vaga'):
+        if vaga_id_to_delete in df['ID'].values:
+            df = df[df['ID'] != vaga_id_to_delete]
+            save_data(df, user_id)
+            st.success(f'Vaga com ID {vaga_id_to_delete} excluída com sucesso!')
+        else:
+            st.warning('ID da vaga não encontrado.')
+
+    # Resetar o CSV
+    st.subheader('Resetar Dados')
+    if st.button('Resetar CSV'):
+        reset_data(user_id)
+        df = load_data(user_id)  # Recarrega o DataFrame após o reset
+
+    # Visualizar Vagas
     st.subheader('Visualizar Vagas')
     if st.button('Mostrar Vagas'):
         st.write(df)
 
-    # Exibir gráficos
+    # Gráficos
+    st.subheader('Análise de Dados')
+
+    # Gráfico de Candidaturas ao Longo do Tempo
     if not df.empty:
-        plot_status_distribution(df)
-        plot_origin_distribution(df)
-        recommend_best_vaga(df)
+        df['Data da Candidatura'] = pd.to_datetime(df['Data da Candidatura'], errors='coerce')
+        candidaturas_por_data = df.groupby(df['Data da Candidatura'].dt.to_period('M')).size()
+        plt.figure(figsize=(10, 5))
+        candidaturas_por_data.plot(kind='line', marker='o')
+        plt.title('Candidaturas ao Longo do Tempo')
+        plt.xlabel('Mês')
+        plt.ylabel('Número de Candidaturas')
+        plt.xticks(rotation=45)
+        st.pyplot(plt)
+
+        # Gráfico de Status das Vagas
+        status_counts = df['Status'].value_counts()
+        plt.figure(figsize=(10, 5))
+        status_counts.plot(kind='bar')
+        plt.title('Distribuição do Status das Vagas')
+        plt.xlabel('Status')
+        plt.ylabel('Quantidade')
+        st.pyplot(plt)
+    else:
+        st.info('Nenhuma vaga cadastrada para gerar gráficos.')
 
 if __name__ == "__main__":
     run()
