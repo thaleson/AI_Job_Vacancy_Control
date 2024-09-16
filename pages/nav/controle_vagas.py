@@ -86,7 +86,7 @@ def run():
     st.subheader('Adicionar Nova Vaga')
     user_id = get_user_id()
     if not user_id:
-        st.warning('Por favor, insira o nome  de usuário para continuar, se não tiver adicioner para continuar.')
+        st.warning('Por favor, insira o nome  de usuário para continuar, se não tiver adicione para continuar.')
         return
 
     df = load_data(user_id)
