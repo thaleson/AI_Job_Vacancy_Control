@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
 import os
-import uuid  # Para gerar IDs únicos
+import uuid
 
 def run():
     st.title('Controle de Vagas de Emprego')
@@ -41,12 +41,25 @@ def run():
             except Exception as e:
                 st.error(f"Erro ao gerar o gráfico de origem: {e}")
 
-            # Gráfico 3: Candidaturas ao longo do tempo
+            # Gráfico 3: Candidaturas ao longo do tempo com visual mais detalhado
             st.subheader('Candidaturas ao Longo do Tempo')
             try:
+                # Converter para datetime
                 df['Data da Candidatura'] = pd.to_datetime(df['Data da Candidatura'], errors='coerce')
                 df_tempo = df.set_index('Data da Candidatura').resample('M').size()
-                st.line_chart(df_tempo)
+
+                # Criando um gráfico mais detalhado com matplotlib
+                fig, ax = plt.subplots()
+                ax.plot(df_tempo.index, df_tempo.values, marker='o', linestyle='-', color='b', label='Candidaturas')
+                ax.set_title('Candidaturas ao Longo do Tempo', fontsize=16)
+                ax.set_xlabel('Data', fontsize=14)
+                ax.set_ylabel('Número de Candidaturas', fontsize=14)
+                ax.legend()
+                ax.grid(True)
+                
+                # Exibir o gráfico no Streamlit
+                st.pyplot(fig)
+
             except Exception as e:
                 st.error(f"Erro ao gerar o gráfico de candidaturas ao longo do tempo: {e}")
 
