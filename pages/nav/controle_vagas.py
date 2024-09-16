@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import os
 import uuid
+import matplotlib.dates as mdates
 
 def run():
     st.title('Controle de Vagas de Emprego')
@@ -56,12 +57,31 @@ def run():
                 ax.set_ylabel('Número de Candidaturas', fontsize=14)
                 ax.legend()
                 ax.grid(True)
-                
+
+                # Formatando as datas no eixo X
+                ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+                fig.autofmt_xdate()
+
+                # Ajustar limites do eixo Y
+                ax.set_ylim(bottom=0)
+
                 # Exibir o gráfico no Streamlit
                 st.pyplot(fig)
 
             except Exception as e:
                 st.error(f"Erro ao gerar o gráfico de candidaturas ao longo do tempo: {e}")
+
+    def excluir_vaga(df, user_id):
+        st.subheader('Excluir Vaga')
+        vaga_id = st.text_input('Digite o ID da vaga que deseja excluir:')
+        if st.button('Excluir Vaga'):
+            if vaga_id in df['ID'].values:
+                df = df[df['ID'] != vaga_id]
+                save_data(df, user_id)
+                st.success('Vaga excluída com sucesso!')
+            else:
+                st.error('ID da vaga não encontrado.')
+        return df
 
     st.subheader('Adicionar Nova Vaga')
     user_id = get_user_id()
@@ -116,6 +136,9 @@ def run():
     st.subheader('Visualizar Vagas')
     if st.button('Mostrar Vagas'):
         st.write(df)
+
+    # Exclusão de vagas
+    df = excluir_vaga(df, user_id)
 
     # Gráficos detalhados apenas se o nome do usuário for fornecido e houver dados
     if not df.empty:
