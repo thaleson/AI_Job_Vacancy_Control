@@ -52,122 +52,7 @@ def run():
         """
         df.to_csv(f'{user_id}_vagas.csv', index=False)
 
-    def prepare_features(data):
-        """
-        Prepara as características (features) e o alvo (target) para o treinamento do modelo.
-        Inclui a codificação das variáveis categóricas e a normalização dos dados.
-
-        Args:
-            data (pd.DataFrame): DataFrame contendo os dados das vagas.
-
-        Returns:
-            tuple: (X, y, scaler, X_columns) onde
-                - X (np.array): Array de características normalizadas.
-                - y (np.array): Array de alvos codificados.
-                - scaler (StandardScaler): Objeto scaler usado para normalizar as características.
-                - X_columns (Index): Colunas do DataFrame de características.
-        """
-        try:
-            le_status = LabelEncoder()
-            data['Status_encoded'] = le_status.fit_transform(data['Status'])
-            
-            data['Data da Candidatura'] = pd.to_datetime(data['Data da Candidatura'], format='%Y-%m-%d', errors='coerce')
-            data = data.dropna(subset=['Data da Candidatura'])
-            data['Data da Candidatura'] = data['Data da Candidatura'].map(datetime.toordinal)
-            
-            X = data[['Data da Candidatura', 'Vaga', 'Origem da Candidatura', 'Pessoas da empresa adicionadas', 'Linkedin da pessoa que mandei a mensagem', 'Ultimo contato pelo linkedin']]
-            y = data['Status_encoded']
-            
-            X = pd.get_dummies(X, drop_first=True)
-            X_columns = X.columns
-            scaler = StandardScaler()
-            X = scaler.fit_transform(X)
-            
-            return X, y, scaler, X_columns
-        except Exception as e:
-            st.error(f"Erro ao preparar os dados: {e}")
-            return None, None, None, None
-
-    def train_model(data):
-        """
-        Treina o modelo de RandomForestClassifier usando os dados fornecidos.
-        Realiza validação cruzada para avaliar o desempenho do modelo.
-
-        Args:
-            data (pd.DataFrame): DataFrame contendo os dados das vagas.
-
-        Returns:
-            tuple: (model, scaler, X_columns) onde
-                - model (RandomForestClassifier): Modelo treinado.
-                - scaler (StandardScaler): Objeto scaler usado para normalizar as características.
-                - X_columns (Index): Colunas do DataFrame de características.
-        """
-        X, y, scaler, X_columns = prepare_features(data)
-
-        if X is None or y is None:
-            return None, None, None
-
-        if len(y) < 5:
-            st.warning('Dados insuficientes para realizar a validação cruzada com 5 dobras. Adicione mais dados.')
-            return None, None, None
-
-        try:
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-            model = RandomForestClassifier(n_estimators=100, random_state=42)
-            model.fit(X_train, y_train)
-
-            cv_dobras = min(5, len(y))
-            scores = cross_val_score(model, X, y, cv=cv_dobras)
-            st.write(f"Acurácia média do modelo: {scores.mean():.2f}")
-
-            return model, scaler, X_columns
-        except Exception as e:
-            st.error(f"Erro ao treinar o modelo: {e}")
-            return None, None, None
-
-    def predict(model, scaler, X_columns):
-        """
-        Realiza a previsão usando o modelo treinado com base nos dados inseridos pelo usuário.
-
-        Args:
-            model (RandomForestClassifier): Modelo treinado.
-            scaler (StandardScaler): Objeto scaler usado para normalizar as características.
-            X_columns (Index): Colunas do DataFrame de características.
-        """
-        data_hoje = st.date_input('Data da Candidatura para Previsão', datetime.today())
-        vaga_previsao = st.text_input('Vaga para Previsão')
-        origem_candidatura_previsao = st.text_input('Origem da Candidatura')
-        pessoas_adicionadas_previsao = st.text_input('Pessoas da empresa adicionadas')
-        linkedin_previsao = st.text_input('Linkedin da pessoa que mandei a mensagem')
-        ultimo_contato_previsao = st.text_input('Ultimo contato pelo linkedin')
-
-        if st.button('Prever'):
-            if not (vaga_previsao and origem_candidatura_previsao and pessoas_adicionadas_previsao and linkedin_previsao and ultimo_contato_previsao):
-                st.warning('Preencha todos os dados para análise e previsão do modelo')
-            else:
-                try:
-                    data_hoje_ordinal = datetime.toordinal(data_hoje)
-                    input_features = pd.DataFrame([[data_hoje_ordinal, vaga_previsao, origem_candidatura_previsao, pessoas_adicionadas_previsao, linkedin_previsao, ultimo_contato_previsao]],
-                                                columns=['Data da Candidatura', 'Vaga', 'Origem da Candidatura', 'Pessoas da empresa adicionadas', 'Linkedin da pessoa que mandei a mensagem', 'Ultimo contato pelo linkedin'])
-                    
-                    input_features = pd.get_dummies(input_features, drop_first=True)
-                    input_features = input_features.reindex(columns=X_columns, fill_value=0)
-                    input_features = scaler.transform(input_features)
-                    
-                    probabilidade = model.predict_proba(input_features)
-                    
-                    if probabilidade.shape[1] > 1:
-                        probabilidade = probabilidade[0][1]
-                    else:
-                        probabilidade = probabilidade[0][0]
-                    
-                    if probabilidade > 0.50:
-                        st.success(f"Você tem {probabilidade * 100:.2f}% de chance de obter sucesso. Resultado: Sucesso")
-                    else:
-                        st.warning(f"Você tem {probabilidade * 100:.2f}% de chance de obter sucesso. Resultado: Não desista")
-                except Exception as e:
-                    st.error(f"Erro ao realizar a previsão: {e}")
-
+       
     st.subheader('Adicionar Nova Vaga')
     user_id = get_user_id()
     if not user_id:
@@ -218,21 +103,6 @@ def run():
     if st.button('Mostrar Vagas'):
         st.write(df)
 
-    st.subheader('Treinar Modelo')
-    if st.button('Treinar Modelo'):
-        model, scaler, X_columns = train_model(df)
-        if model:
-            st.success('Modelo treinado com sucesso!')
-        else:
-            st.error('Erro ao treinar o modelo. Adicione mais dados e tente novamente.')
-
-    st.subheader('Previsão')
-    if st.button('Fazer Previsão'):
-        model, scaler, X_columns = train_model(df)
-        if model:
-            predict(model, scaler, X_columns)
-        else:
-            st.error('Modelo não treinado. Treine o modelo antes de fazer previsões.')
 
 if __name__ == "__main__":
     run()
